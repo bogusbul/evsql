@@ -10,12 +10,7 @@ func Test_MysqlConnect(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	query, err := m.StatementPrepare("SELECT * FROM user")
-	if err != nil {
-		t.Error(err)
-	}
-	t.Log(query)
-	results, err := m.Query(query)
+	results, err := m.PreparedQuery("SELECT * FROM user")
 	if err != nil {
 		t.Error(err)
 	}
