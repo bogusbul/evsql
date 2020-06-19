@@ -203,8 +203,11 @@ func (m *MySQL) PreparedQuery(query string) ([]map[string]map[string]interface{}
 		}
 		for i := 0; i < len(dest); i++ {
 			tableCol := strings.Split(columns[i], ".")
-			if i == 0 {
+			if (len(resMap) - 1) < counter {
 				resMap = append(resMap, map[string]map[string]interface{}{tableCol[0]: map[string]interface{}{}})
+			}
+			if _, ok := resMap[counter][tableCol[0]]; !ok {
+				resMap[counter] = map[string]map[string]interface{}{tableCol[0]: map[string]interface{}{}}
 			}
 			switch reflect.TypeOf(dest[i]).String() {
 			case "*sql.RawBytes":
