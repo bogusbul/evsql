@@ -203,7 +203,7 @@ func (m *MySQL) PreparedQuery(query string) ([]map[string]map[string]interface{}
 		}
 		for i := 0; i < len(dest); i++ {
 			tableCol := strings.Split(columns[i], ".")
-			if (len(resMap) - 1) <= counter {
+			if i == 0 {
 				resMap = append(resMap, map[string]map[string]interface{}{tableCol[0]: map[string]interface{}{}})
 			}
 			switch reflect.TypeOf(dest[i]).String() {
