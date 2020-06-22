@@ -7,6 +7,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"log"
 	"reflect"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -180,7 +181,6 @@ func (m *MySQL) PreparedQuery(query string) ([]map[string]map[string]interface{}
 	dest := []interface{}{}
 	resMap := []map[string]map[string]interface{}{}
 	for _, cType := range cTypes {
-		//log.Println(cType.ScanType().String())
 		switch cType.ScanType().String() {
 		case "sql.RawBytes":
 			dest = append(dest, new(sql.RawBytes))
@@ -207,34 +207,19 @@ func (m *MySQL) PreparedQuery(query string) ([]map[string]map[string]interface{}
 				resMap = append(resMap, map[string]map[string]interface{}{tableCol[0]: map[string]interface{}{}})
 			}
 			if _, ok := resMap[counter][tableCol[0]]; !ok {
-				resMap[counter] = map[string]map[string]interface{}{tableCol[0]: map[string]interface{}{}}
+				resMap[counter][tableCol[0]] = map[string]interface{}{tableCol[0]: map[string]interface{}{}}
 			}
 			switch reflect.TypeOf(dest[i]).String() {
 			case "*sql.RawBytes":
-				nv := new(sql.RawBytes)
-				*nv = *dest[i].(*sql.RawBytes)
-				resMap[counter][tableCol[0]][tableCol[1]] = nv
-
+				resMap[counter][tableCol[0]][tableCol[1]] = string(*dest[i].(*sql.RawBytes))
 			case "*uint32":
-				nv := new(uint32)
-				*nv = *dest[i].(*uint32)
-				resMap[counter][tableCol[0]][tableCol[1]] = nv
-
+				resMap[counter][tableCol[0]][tableCol[1]] = strconv.FormatUint(uint64(*dest[i].(*uint32)), 10)
 			case "*mysql.NullTime":
-				nv := new(mysql.NullTime)
-				*nv = *dest[i].(*mysql.NullTime)
-				resMap[counter][tableCol[0]][tableCol[1]] = nv
-
+				resMap[counter][tableCol[0]][tableCol[1]] = dest[i].(*mysql.NullTime)
 			case "*sql.NullInt64":
-				nv := new(sql.NullInt64)
-				*nv = *dest[i].(*sql.NullInt64)
-				resMap[counter][tableCol[0]][tableCol[1]] = nv
-
+				resMap[counter][tableCol[0]][tableCol[1]] = strconv.FormatInt(dest[i].(*sql.NullInt64).Int64, 10)
 			default:
-				nv := new(interface{})
-				*nv = *dest[i].(*interface{})
-				resMap[counter][tableCol[0]][tableCol[1]] = nv
-
+				resMap[counter][tableCol[0]][tableCol[1]] = dest[i].(*interface{})
 			}
 		}
 	}
