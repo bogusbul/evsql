@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"github.com/go-sql-driver/mysql"
 	"log"
 	"reflect"
 	"strconv"
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/go-sql-driver/mysql"
 )
 
 type MySQL struct {
@@ -105,29 +106,15 @@ func (m *MySQL) Query(query string) ([]map[string]interface{}, error) {
 		for i := 0; i < len(dest); i++ {
 			switch reflect.TypeOf(dest[i]).String() {
 			case "*sql.RawBytes":
-				nv := new(sql.RawBytes)
-				*nv = *dest[i].(*sql.RawBytes)
-				resMap[counter][columns[i]] = nv
+				resMap[counter][columns[i]] = string(*dest[i].(*sql.RawBytes))
 			case "*uint32":
-				nv := new(uint32)
-				*nv = *dest[i].(*uint32)
-				resMap[counter][columns[i]] = nv
-
+				resMap[counter][columns[i]] = strconv.FormatUint(uint64(*dest[i].(*uint32)), 10)
 			case "*mysql.NullTime":
-				nv := new(mysql.NullTime)
-				*nv = *dest[i].(*mysql.NullTime)
-				resMap[counter][columns[i]] = nv
-
+				resMap[counter][columns[i]] = dest[i].(*mysql.NullTime)
 			case "*sql.NullInt64":
-				nv := new(sql.NullInt64)
-				*nv = *dest[i].(*sql.NullInt64)
-				resMap[counter][columns[i]] = nv
-
+				resMap[counter][columns[i]] = strconv.FormatInt(dest[i].(*sql.NullInt64).Int64, 10)
 			default:
-				nv := new(interface{})
-				*nv = *dest[i].(*interface{})
-				resMap[counter][columns[i]] = nv
-
+				resMap[counter][columns[i]] = dest[i].(*interface{})
 			}
 		}
 	}
@@ -136,14 +123,9 @@ func (m *MySQL) Query(query string) ([]map[string]interface{}, error) {
 }
 
 func (m *MySQL) PreparedQuery(query string) ([]map[string]map[string]interface{}, error) {
-	if len(m.Tables) == 0 {
-		// if no tables aber defined we need to do so otherwise we will not be able to return the result map back
-		nQuery, err := m.StatementPrepare(query)
-		if err != nil {
-			return nil, err
-		}
-		// replace the query
-		query = nQuery
+	query, err := m.StatementPrepare(query)
+	if err != nil {
+		return nil, err
 	}
 	log.Println("query", query)
 	//defer db.Close()
@@ -190,6 +172,14 @@ func (m *MySQL) PreparedQuery(query string) ([]map[string]map[string]interface{}
 			dest = append(dest, new(mysql.NullTime))
 		case "sql.NullInt64":
 			dest = append(dest, new(sql.NullInt64))
+		// case "sql.NullFloat64":
+		// 	dest = append(dest, new(sql.NullFloat64))
+		case "int64":
+			dest = append(dest, new(int64))
+		case "int32":
+			dest = append(dest, new(int32))
+		case "int8":
+			dest = append(dest, new(int8))
 		default:
 			dest = append(dest, new(interface{}))
 		}
@@ -215,9 +205,22 @@ func (m *MySQL) PreparedQuery(query string) ([]map[string]map[string]interface{}
 			case "*uint32":
 				resMap[counter][tableCol[0]][tableCol[1]] = strconv.FormatUint(uint64(*dest[i].(*uint32)), 10)
 			case "*mysql.NullTime":
-				resMap[counter][tableCol[0]][tableCol[1]] = dest[i].(*mysql.NullTime)
+				if dest[i].(*mysql.NullTime).Valid {
+					resMap[counter][tableCol[0]][tableCol[1]] = (dest[i].(*mysql.NullTime).Time).Format("2006-01-02 15:04:05")
+				} else {
+					resMap[counter][tableCol[0]][tableCol[1]] = ""
+				}
 			case "*sql.NullInt64":
 				resMap[counter][tableCol[0]][tableCol[1]] = strconv.FormatInt(dest[i].(*sql.NullInt64).Int64, 10)
+			// case "*sql.NullFloat64":
+			// 	log.Println(dest[i].(*sql.NullFloat64).Float64)
+			// 	log.Println(strconv.FormatFloat(dest[i].(*sql.NullFloat64), 'E', -1, 64)
+			case "*int64":
+				resMap[counter][tableCol[0]][tableCol[1]] = *dest[i].(*int64)
+			case "*int32":
+				resMap[counter][tableCol[0]][tableCol[1]] = *dest[i].(*int32)
+			case "*int8":
+				resMap[counter][tableCol[0]][tableCol[1]] = *dest[i].(*int8)
 			default:
 				resMap[counter][tableCol[0]][tableCol[1]] = dest[i].(*interface{})
 			}
@@ -248,11 +251,10 @@ func (m *MySQL) StatementPrepare(query string) (string, error) {
 		for _, value := range r {
 			for cKey, cValue := range value {
 				if cKey == "Field" {
-					val := cValue.(*sql.RawBytes)
 					if _, ok := m.Tables[table]; !ok {
 						m.Tables[table] = []string{}
 					}
-					m.Tables[table] = append(m.Tables[table], string(*val))
+					m.Tables[table] = append(m.Tables[table], cValue.(string))
 				}
 			}
 		}
