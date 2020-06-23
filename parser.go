@@ -7,6 +7,22 @@ import (
 	"reflect"
 )
 
+func appendTable(tableExpr *sqlparser.AliasedTableExpr, tables []string) []string {
+	tables = append(tables, sqlparser.GetTableName(tableExpr.Expr).String())
+	return tables
+}
+
+func appendJoinTable(tableExpr *sqlparser.JoinTableExpr, tables []string) []string {
+	switch reflect.TypeOf(tableExpr.LeftExpr).String() {
+	case "*sqlparser.JoinTableExpr":
+		tables = appendJoinTable(tableExpr.LeftExpr.(*sqlparser.JoinTableExpr), tables)
+	case "*sqlparser.AliasedTableExpr":
+		tables = append(tables, sqlparser.GetTableName(tableExpr.LeftExpr.(*sqlparser.AliasedTableExpr).Expr).String())
+		tables = append(tables, sqlparser.GetTableName(tableExpr.RightExpr.(*sqlparser.AliasedTableExpr).Expr).String())
+	}
+	return tables
+}
+
 func SqlToTables(sql string) []string {
 	tables := []string{}
 	tokens := sqlparser.NewStringTokenizer(sql)
@@ -20,16 +36,9 @@ func SqlToTables(sql string) []string {
 			for _, tableExpr := range stmt.From {
 				switch reflect.TypeOf(tableExpr).String() {
 				case "*sqlparser.JoinTableExpr":
-					switch reflect.TypeOf(tableExpr.(*sqlparser.JoinTableExpr).LeftExpr).String() {
-					case "*sqlparser.JoinTableExpr":
-						tables = append(tables, sqlparser.GetTableName(tableExpr.(*sqlparser.JoinTableExpr).LeftExpr.(*sqlparser.JoinTableExpr).LeftExpr.(*sqlparser.AliasedTableExpr).Expr).String())
-						tables = append(tables, sqlparser.GetTableName(tableExpr.(*sqlparser.JoinTableExpr).LeftExpr.(*sqlparser.JoinTableExpr).RightExpr.(*sqlparser.AliasedTableExpr).Expr).String())
-					case "*sqlparser.AliasedTableExpr":
-						tables = append(tables, sqlparser.GetTableName(tableExpr.(*sqlparser.JoinTableExpr).LeftExpr.(*sqlparser.AliasedTableExpr).Expr).String())
-					}
-					tables = append(tables, sqlparser.GetTableName(tableExpr.(*sqlparser.JoinTableExpr).RightExpr.(*sqlparser.AliasedTableExpr).Expr).String())
+					tables = appendJoinTable(tableExpr.(*sqlparser.JoinTableExpr), tables)
 				case "*sqlparser.AliasedTableExpr":
-					tables = append(tables, sqlparser.GetTableName(tableExpr.(*sqlparser.AliasedTableExpr).Expr).String())
+					tables = appendTable(tableExpr.(*sqlparser.AliasedTableExpr), tables)
 				}
 			}
 		}
