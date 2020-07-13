@@ -267,8 +267,7 @@ func (m *MySQL) StatementPrepare(query string) (string, error) {
 					if _, ok := m.Tables[table]; !ok {
 						m.Tables[table] = []string{}
 					}
-					val := cValue.(*sql.RawBytes)
-					m.Tables[table] = append(m.Tables[table], string(*val))
+					m.Tables[table] = append(m.Tables[table], cValue.(string))
 				}
 			}
 		}
