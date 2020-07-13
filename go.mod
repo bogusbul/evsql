@@ -1,4 +1,4 @@
-module evalgo.org/evsql
+module github.com/bogusbul/evsql
 
 go 1.14
 

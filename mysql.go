@@ -4,15 +4,19 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"log"
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
 )
+
+var mux sync.Mutex
 
 type MySQL struct {
 	DB       *sql.DB
@@ -163,6 +167,7 @@ func (m *MySQL) PreparedQuery(query string) ([]map[string]map[string]interface{}
 	dest := []interface{}{}
 	resMap := []map[string]map[string]interface{}{}
 	for _, cType := range cTypes {
+		mux.Lock()
 		switch cType.ScanType().String() {
 		case "sql.RawBytes":
 			dest = append(dest, new(sql.RawBytes))
@@ -183,6 +188,7 @@ func (m *MySQL) PreparedQuery(query string) ([]map[string]map[string]interface{}
 		default:
 			dest = append(dest, new(interface{}))
 		}
+		mux.Unlock()
 	}
 	counter := -1
 	for rows.Next() {
@@ -193,6 +199,7 @@ func (m *MySQL) PreparedQuery(query string) ([]map[string]map[string]interface{}
 		}
 		for i := 0; i < len(dest); i++ {
 			tableCol := strings.Split(columns[i], ".")
+			mux.Lock()
 			if (len(resMap) - 1) < counter {
 				resMap = append(resMap, map[string]map[string]interface{}{tableCol[0]: map[string]interface{}{}})
 			}
@@ -224,6 +231,7 @@ func (m *MySQL) PreparedQuery(query string) ([]map[string]map[string]interface{}
 			default:
 				resMap[counter][tableCol[0]][tableCol[1]] = dest[i].(*interface{})
 			}
+			mux.Unlock()
 		}
 	}
 	log.Println(conn.Close())
@@ -241,7 +249,12 @@ func generateWildcardColumns(table string, fields []string) string {
 func (m *MySQL) StatementPrepare(query string) (string, error) {
 	m.Tables = map[string][]string{}
 	tables := SqlToTables(query)
-	queryNew := strings.Replace(query, "*", "{{generateAllWildcardColumns .}}", 1)
+	queryNew := query
+	if len(tables) > 0 {
+		queryNew = strings.Replace(query, "*", "{{generateAllWildcardColumns .}}", 1)
+	} else {
+		return "", errors.New("no tables found for given query :" + query)
+	}
 	for _, table := range tables {
 		query := `SHOW COLUMNS FROM ` + table
 		r, err := m.Query(query)
@@ -254,7 +267,8 @@ func (m *MySQL) StatementPrepare(query string) (string, error) {
 					if _, ok := m.Tables[table]; !ok {
 						m.Tables[table] = []string{}
 					}
-					m.Tables[table] = append(m.Tables[table], cValue.(string))
+					val := cValue.(*sql.RawBytes)
+					m.Tables[table] = append(m.Tables[table], string(*val))
 				}
 			}
 		}
