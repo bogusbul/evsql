@@ -261,6 +261,7 @@ func (m *MySQL) StatementPrepare(query string) (string, error) {
 		if err != nil {
 			return "", err
 		}
+		mux.Lock()
 		for _, value := range r {
 			for cKey, cValue := range value {
 				if cKey == "Field" {
@@ -271,6 +272,7 @@ func (m *MySQL) StatementPrepare(query string) (string, error) {
 				}
 			}
 		}
+		mux.Unlock()
 	}
 	buff := bytes.NewBuffer(nil)
 	f := template.FuncMap{
