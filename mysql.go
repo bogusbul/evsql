@@ -49,11 +49,11 @@ func (m *MySQL) Close() error {
 
 func (m *MySQL) Query(query string) ([]map[string]interface{}, error) {
 	//defer db.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
 	defer cancel()
 	go func(ctx context.Context) {
 		select {
-		case <-time.After(61 * time.Second):
+		case <-time.After(300 * time.Second):
 			log.Println("overslept")
 		case <-ctx.Done():
 			log.Println(ctx.Err())
@@ -133,11 +133,11 @@ func (m *MySQL) PreparedQuery(query string) ([]map[string]map[string]interface{}
 	}
 	log.Println("query", query)
 	//defer db.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
 	defer cancel()
 	go func(ctx context.Context) {
 		select {
-		case <-time.After(16 * time.Second):
+		case <-time.After(300 * time.Second):
 			log.Println("overslept")
 		case <-ctx.Done():
 			log.Println(ctx.Err())
